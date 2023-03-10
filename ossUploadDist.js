@@ -3,8 +3,8 @@ const path = require('path');
 const OSS = require('ali-oss');
 
 // 阿里云 OSS 的 AccessKey ID 和 AccessKey Secret
-const accessKeyId = 'aaaaaaaaaaaaaaaaaaaaaaaa';
-const accessKeySecret = 'bbbbbbbbbbbbbbbbbb';
+const accessKeyId = 'aaaaaaaaaaaaaaaaa';
+const accessKeySecret = 'bbbbbbbbbbbbbbbb';
 
 // 阿里云 OSS 的 Endpoint、Bucket 和 Region
 const bucket = 'bucket';
@@ -21,26 +21,36 @@ const client = new OSS({
   region,
 });
 
-// 定义递归函数，用于遍历目录并上传文件和子目录
-async function uploadDir(localDirPath, ossDirPath) {
-  const files = await fs.promises.readdir(localDirPath);
-  for (const file of files) {
-    const localFilePath = path.join(localDirPath, file);
-    const ossFilePath = path.join(ossDirPath, file);
-    const stats = await fs.promises.stat(localFilePath);
-    if (stats.isDirectory()) {
-      await uploadDir(localFilePath, ossFilePath);
-    } else {
-      const result = await client.put(ossFilePath, localFilePath);
-      console.log(`Uploaded ${ossFilePath}, ETag: ${JSON.stringify(result.url)}`);
+// 调用函数上传 dist 目录下的所有文件和子目录
+const localDirPath = 'C:\\Users\\Easy\\Desktop\\middlwPlatform\\sp-platform\\dist\\';
+// const localDirPath = path.join(__dirname, 'dist');
+
+  async function uploadFiles(dirPath, prefix = '') {
+    const files = await fs.promises.readdir(dirPath);
+  
+    for (const file of files) {
+      const filePath = path.join(dirPath, file);
+      const key = prefix ? `${prefix}/${file}` : file;
+  
+      const stats = await fs.promises.stat(filePath);
+  
+      if (stats.isFile()) {
+        // 上传文件
+        await client.put(key, filePath);
+      } else if (stats.isDirectory()) {
+        // 上传子目录
+        await uploadFiles(filePath, key);
+      }
     }
   }
-}
-
-// 调用函数上传 dist 目录下的所有文件和子目录
-const localDirPath = '\\';
-
-const ossDirPath = '';
-uploadDir(localDirPath, ossDirPath)
-  .then(() => console.log(`Upload completed: ${localDirPath} => oss://${bucket}/${ossDirPath}`))
-  .catch((err) => console.error(`Upload failed: ${err}`));
+  
+  async function uploadDist(distPath) {
+    try {
+      await uploadFiles(distPath);
+      console.log('上传成功！');
+    } catch (err) {
+      console.error('上传失败：', err);
+    }
+  }
+  
+  uploadDist(localDirPath);
